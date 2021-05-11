@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="wasm_exec.js"></script>
+<script src="mr_freeze.js"></script>
+<script src="mr_freeze_go.js"></script>
+
+<script type="text/javascript">
+
+// called from Go
+window.printLogMessage = function(msg) {
+  document.querySelector("pre").innerText += msg;
+}
+
+window.onload = async function() {
+  var go = new Go;
+
+  // Set these up before doing anything with WASM
+  document.querySelector("#save-and-reload").onclick = function() {
+    window.localStorage.savedVMState = MrFreeze.Go.save(go);
+    MrFreeze.Go.forciblyTerminateVM(go);
+    window.location.reload();
+  };
+
+  document.querySelector("#clear-and-reload").onclick = function() {
+    delete window.localStorage.savedVMState;
+    MrFreeze.Go.forciblyTerminateVM(go);
+    window.location.reload();
+  };
+
+  var module = await WebAssembly.compileStreaming(
+    await fetch("main_formatted.wasm"));
+  var instance = await WebAssembly.instantiate(module, go.importObject);
+
+  if (window.localStorage.savedVMState) {
+    // resume an existing VM
+    MrFreeze.Go.restore(window.localStorage.savedVMState, go, instance);
+  } else {
+    // start a new VM
+    go.run(instance);
+  }
+
+}
+</script>
+</head>
+<body>
+<input type="button" id="save-and-reload"
+  value="Save the contents of the VM and reload the page"/>
+<input type="button" id="clear-and-reload"
+  value="Delete the contents of the VM and reload the page"/>
+<pre></pre>
+</body>
+</html>
